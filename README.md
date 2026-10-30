@@ -1,4 +1,4 @@
-# drac_usage_reporter
+# Drac Usage Reporter
 
 Usage audits of a research group's Slurm accounts on Digital Research Alliance of Canada (DRAC)
 clusters: who uses how much GPU (RGU) and CPU time on each cluster, what jobs ask for, how well
