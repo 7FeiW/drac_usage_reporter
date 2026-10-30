@@ -102,7 +102,7 @@ def ssh(cluster, cmd, what="working"):
     with Spinner(f"[{cluster.name}] {what}"):
         p = subprocess.run(cluster.ssh_command(cmd), capture_output=True, text=True)
     err = p.stderr.strip()
-    if p.returncode != 0 and not p.stdout:
+    if p.returncode != 0:
         tip = (" Or run this command in a terminal: it then opens the connection itself, asking for MFA or "
                "the host key there." if CONNECTIONS.auto and not sys.stdin.isatty() else "")
         raise SystemExit(f"ssh failed ({err.splitlines()[-1] if err else f'exit {p.returncode}'}). "
@@ -142,12 +142,14 @@ def sreport_days(cluster, accounts, days):
 
     Minutes, not hours: summed over many days, values rounded to whole hours would drift.
     """
+    if not days:
+        return {}
     tres = ["cpu", "billing", "gres/gpu"] + [g.gres for g in cluster.gpus.values()]
     cmds = [f"echo '@@ {d}'; sreport -n -P -t minutes cluster AccountUtilizationByUser "
             f"accounts={','.join(accounts)} start={d} end={d + dt.timedelta(days=1)} "
             f"-T {','.join(tres)} format=Account,Login,TresName,Used" for d in days]
     out, day = {}, None
-    for line in ssh(cluster, "; ".join(cmds), f"usage, {len(days)} day{'s' * (len(days) != 1)}").splitlines(keepends=True):
+    for line in ssh(cluster, "set -e; " + "; ".join(cmds), f"usage, {len(days)} day{'s' * (len(days) != 1)}").splitlines(keepends=True):
         if line.startswith("@@ "):
             day = dt.date.fromisoformat(line[3:].strip())
             out[day] = ""
@@ -172,7 +174,7 @@ def jobs(cluster, accounts, ranges):
     cmds = [f"sacct -a -A {','.join(accounts)} -S {s:%Y-%m-%dT%H:%M:%S} -E {e:%Y-%m-%dT%H:%M:%S} -n -P "
             f"--format={','.join(sacct.FIELDS)}"
             for start, end in ranges for s, e in date_chunks(start, end, cluster.sacct_chunk_days)]
-    return ssh(cluster, "; ".join(cmds), "job records") if cmds else ""
+    return ssh(cluster, "set -e; " + "; ".join(cmds), "job records") if cmds else ""
 
 
 def queue(cluster, accounts):

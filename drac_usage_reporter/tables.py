@@ -204,6 +204,8 @@ def queue_summary(text):
         if len(f) < 9:
             continue
         u, a, st, per_node, per_job, nn, alloc, cpus, reason = f[:9]
+        if st not in ("RUNNING", "PENDING"):
+            continue
         m = re.search(r"gres/gpu=(\d+)", alloc)
         gpus = int(m.group(1)) if m else 0
         if not m:
@@ -215,7 +217,7 @@ def queue_summary(text):
             row["jr"] += 1
             row["gr"] += gpus
             row["cr"] += cores
-        else:
+        elif st == "PENDING":
             row["jp"] += 1
             row["gp"] += gpus
             row["cp"] += cores

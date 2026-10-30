@@ -292,8 +292,24 @@ class Cache(unittest.TestCase):
         s2.check_accounts(["other_gpu"])
         self.assertEqual(s2.sreport_days(), [])
 
+    def test_historical_cutoff_excludes_later_statistics(self):
+        dt = self.dt
+        self.store.put_sacct(SACCT, [(dt.datetime(2026, 10, 1), dt.datetime(2026, 10, 5))])
+        # Bob was pending on Oct 1, but his cached usage and outcome are from Oct 2.
+        jobs = self.store.jobs(dt.date(2026, 10, 1), dt.date(2026, 10, 1))
+        self.assertEqual(set(jobs), {"10000001"})
+        running = SACCT.splitlines()[0].replace("2026-10-01T12:00:00", "Unknown")
+        self.store.put_sacct(running, [(dt.datetime(2026, 10, 1), dt.datetime(2026, 10, 5))])
+        self.assertEqual(self.store.jobs(dt.date(2026, 10, 1), dt.date(2026, 10, 1)), {})
+        self.assertIn("10000001", self.store.jobs(dt.date(2026, 10, 1), dt.date(2026, 10, 5)))
+
 
 class Queue(unittest.TestCase):
+    def test_other_states_do_not_count_as_pending(self):
+        text = "\n".join(f"u|a_cpu|{state}|N/A|N/A|1|cpu=4|4|None"
+                         for state in ("COMPLETING", "SUSPENDED", "CONFIGURING"))
+        self.assertNotIn("| u |", tables.queue_summary(text))
+
     def test_cpu_and_gpu(self):
         text = "\n".join([
             "a|rrg-x_gpu|RUNNING|gres/gpu:h100:1|N/A|1|cpu=12,gres/gpu=1|12|None",
@@ -308,6 +324,31 @@ class Queue(unittest.TestCase):
 
 
 class Fetch(unittest.TestCase):
+    def test_failure_with_stdout_is_rejected(self):
+        from unittest import mock
+        with mock.patch.object(fetch.CONNECTIONS, "ensure"), \
+                mock.patch.object(fetch.subprocess, "run", return_value=mock.Mock(
+                    returncode=1, stdout="partial records", stderr="database unavailable")):
+            with self.assertRaises(SystemExit):
+                fetch.ssh(config.Cluster("fir", "fir"), "sacct")
+
+    def test_batched_commands_stop_on_first_failure(self):
+        import datetime as dt
+        from unittest import mock
+        # Execute the actual generated shell batch locally. The first command fails;
+        # a later successful command must not mask that failure.
+        for command in ("sreport", "sacct"):
+            with self.subTest(command=command):
+                c = config.Cluster("fir", "fir")
+                shell = f"n=0; {command}() {{ n=$((n+1)); [ $n -gt 1 ]; }}; "
+                with mock.patch.object(fetch.CONNECTIONS, "ensure"), \
+                        mock.patch.object(c, "ssh_command", side_effect=lambda cmd: ["sh", "-c", shell + cmd]):
+                    with self.assertRaises(SystemExit):
+                        if command == "sreport":
+                            fetch.sreport_days(c, ["a"], [dt.date(2026, 10, 1), dt.date(2026, 10, 2)])
+                        else:
+                            fetch.jobs(c, ["a"], [(dt.datetime(2026, 10, 1), dt.datetime(2026, 10, 25))])
+
     def test_date_chunks(self):
         import datetime as dt
         c = fetch.date_chunks(dt.date(2026, 1, 1), dt.date(2026, 1, 25), 10)

@@ -163,14 +163,20 @@ class Store:
         self.index["sacct"] = {"from": _ts(lo), "to": _ts(hi), "jobs": len(stored)}
 
     def jobs(self, first, last):
-        """Jobs that were pending or running on any day in [first, last]."""
+        """Jobs overlapping [first, last]. Historical windows include only jobs finished by
+        their cutoff: the cache has latest records, not historical running-job snapshots.
+        Costs remain lifetime job costs, rather than usage clipped to the window.
+        """
         path = self.dir / "sacct.txt"
         if not path.exists():
             return {}
         lo, hi = first.isoformat(), (last + dt.timedelta(days=1)).isoformat()
+        historical = hi + "T00:00:00" < self.index.get("sacct", {}).get("to", "")
         out = {}
         for k, j in sacct.parse(path.read_text().splitlines(), self.cluster.name).items():
             ended = j.end if j.end[:1].isdigit() else "9999"
+            if historical and ended >= hi:
+                continue
             if ended >= lo and j.submit < hi:
                 out[k] = j
         return out

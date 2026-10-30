@@ -16,6 +16,11 @@
   `drac_usage_reporter fetch` asks for 10-day windows. A job that spans two windows appears twice; the loader
   keeps one copy.
 - Each array task counts as one job.
+- The cache keeps the latest job records, not historical snapshots. For a window ending before
+  the latest sacct fetch, job tables, flags and CSV exports include only jobs that finished by
+  the cutoff. Jobs still pending or running at that cutoff are omitted because their earlier
+  resource use and state cannot be recovered from the cache. Job costs are lifetime costs;
+  they are not clipped to the window. Use sreport tables for usage within the date window.
 
 ## RGU billing on fir
 
