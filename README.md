@@ -151,3 +151,7 @@ tests/                      python -m unittest discover tests
   compares them with narval's Slurm config. (Rates come from each cluster's Slurm config, since the
   DRAC documentation site blocks automated fetches.)
 - Flags on the live queue (catch an expensive request shape before it runs).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
