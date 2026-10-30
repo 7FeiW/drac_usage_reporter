@@ -1,0 +1,6 @@
+data/
+__pycache__/
+*.pyc
+config.ini
+reports/*
+.mypy_cache/
