@@ -57,34 +57,32 @@ multifactor authentication.
 2. Under **My Account → Multifactor authentication management**, enroll a device (the Duo
    Mobile app or a hardware key) if you haven't yet.
 
-### 2.3 Add the clusters to `~/.ssh/config`
+### 2.3 Configure direct SSH destinations
 
+Set the full hostname, CCDB login and key path in each cluster section of `config.ini`
+(step 3). No aliases in `~/.ssh/config` are required:
+
+```ini
+[cluster fir]
+host = fir.alliancecan.ca
+user = <ccdb_username>
+identity_file = ~/.ssh/<ssh_key>
+
+[cluster narval]
+host = narval.alliancecan.ca
+user = <ccdb_username>
+identity_file = ~/.ssh/<ssh_key>
 ```
-Host fir
-  HostName fir.alliancecan.ca
-  User <ccdb_username>
-  IdentityFile ~/.ssh/<ssh_key>
-  IdentitiesOnly yes
-  ServerAliveInterval 60
 
-Host narval
-  HostName narval.alliancecan.ca
-  User <ccdb_username>
-  IdentityFile ~/.ssh/<ssh_key>
-  IdentitiesOnly yes
-  ServerAliveInterval 60
-```
-
-The alias (`fir`, `narval`) is what `host =` in the tool's config refers to; by default the
-tool uses the cluster's section name. If you'd rather not edit `~/.ssh/config`, set `host`,
-`user` and `identity_file` in `config.ini` instead (step 3).
+The tool uses the system `ssh` client, which still reads normal SSH configuration for
+other options. The destination and credentials above are passed explicitly.
 
 ### 2.4 First login
 
 Log in once by hand to each cluster:
 
 ```bash
-ssh fir
+ssh -i ~/.ssh/<ssh_key> <ccdb_username>@fir.alliancecan.ca
 ```
 
 - **Host key:** the first time, ssh asks *"Are you sure you want to continue connecting?"*.
@@ -92,7 +90,7 @@ ssh fir
 - **MFA:** approve the request, for example with a push to your phone.
 - You land on a login node (`login1`, `login2`, ...). Type `exit`.
 
-If it fails, run `ssh -v fir` to see why. The usual causes are a key not (yet) registered in
+If it fails, run `ssh -v -i ~/.ssh/<ssh_key> <ccdb_username>@fir.alliancecan.ca` to see why. The usual causes are a key not (yet) registered in
 CCDB, the wrong `User`, or key file permissions.
 
 ### 2.5 How the tool uses ssh
@@ -150,7 +148,7 @@ config can be as small as:
 clusters = fir                  # what --cluster means when you leave it out (default: all)
 
 [cluster fir]
-host = fir.alliancecan.ca       # not needed if "fir" is an alias in ~/.ssh/config
+host = fir.alliancecan.ca       # direct SSH hostname
 user = <ccdb_username>
 identity_file = ~/.ssh/<ssh_key>
 accounts = rrg-<pi>_gpu, def-<pi>_gpu, rrg-<pi>_cpu, def-<pi>_cpu
@@ -352,12 +350,14 @@ Each array task counts as a job. The report shows the same table as of the last 
 
 To add narval, for example:
 
-1. Add an ssh alias (step 2) and log in once to accept the host key and approve MFA.
+1. Log in to the full SSH hostname (step 2) to accept the host key and approve MFA.
 2. Add a section to your `config.ini`:
 
    ```ini
    [cluster narval]
-   host = narval
+   host = narval.alliancecan.ca
+   user = <ccdb_username>
+   identity_file = ~/.ssh/<ssh_key>
    accounts = rrg-<pi>_gpu, def-<pi>_gpu, rrg-<pi>_cpu, def-<pi>_cpu
    ```
 3. Run `check --cluster narval`. Correct the account list, and paste in the billing-rate lines it

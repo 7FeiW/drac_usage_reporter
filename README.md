@@ -58,7 +58,7 @@ the config.
 ## Configuration
 
 Settings live in `config.ini`, which is git-ignored. Start from the committed example, which has
-fir and narval with their billing rates; replace `<pi>` in the account names with your group's:
+fir and narval with their billing rates; set your login, key path and group account names:
 
 ```bash
 cp config.example.ini config.ini
@@ -77,8 +77,8 @@ cache_days = 365            # rolling cache: older usage and finished jobs are d
 top = 25                    # request shapes listed per cluster
 
 [cluster fir]
-host = fir                  # ssh destination; an ~/.ssh/config alias or a full host name
-user = <ccdb_username>      # optional; else from ~/.ssh/config
+host = fir.alliancecan.ca   # direct SSH hostname
+user = <ccdb_username>      # your CCDB login
 identity_file = ~/.ssh/<ssh_key>
 ssh_options = -o BatchMode=yes -o ControlMaster=auto -o ControlPath=~/.ssh/cm-%r@%h -o ControlPersist=12h
 accounts = rrg-<pi>_gpu, def-<pi>_gpu, rrg-<pi>_cpu, def-<pi>_cpu
